@@ -242,13 +242,15 @@ class FullyAssociativeTLB(Elaboratable):
 
         def do_query(cam, is_store):
             ask_backing = Signal()
-            with m.If(~cam.full_match.any()):
-                m.d.av_comb += ask_backing.eq(1)
-            if self.gen_params.vmem_params.supports_auto_a_d_management:
-                with m.Elif(is_store & ~cam.matched_entry.permissions.d):
-                    # We have found an entry, but it doesn't have the dirty bit set
-                    # Ask the backing resolver to set it (Svade semantic)
-                    m.d.av_comb += ask_backing.eq(1)
+            m.d.av_comb += ask_backing.eq(1)
+            
+            #with m.If(~cam.full_match.any()):
+            #    m.d.av_comb += ask_backing.eq(1)
+            #if self.gen_params.vmem_params.supports_auto_a_d_management:
+            #    with m.Elif(is_store & ~cam.matched_entry.permissions.d):
+            #        # We have found an entry, but it doesn't have the dirty bit set
+            #        # Ask the backing resolver to set it (Svade semantic)
+            #        m.d.av_comb += ask_backing.eq(1)
 
             ret = {
                 "result": AddressTranslationLayouts.TLBResult.HIT,

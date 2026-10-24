@@ -203,7 +203,7 @@ class _CoreConfigurationDataClass:
     user_mode: bool = True
     supervisor_mode: bool = True
 
-    sstc: bool = True
+    sstc: bool = False
 
     asidlen: int | None = None
     supported_vm_schemes: Collection[SatpMode] = (SatpMode.BARE, SatpMode.SV32)
