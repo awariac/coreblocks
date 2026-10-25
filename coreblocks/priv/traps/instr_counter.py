@@ -1,8 +1,9 @@
 from amaranth import *
+from coreblocks.interface.keys import Export
 from coreblocks.params.genparams import GenParams
 from coreblocks.interface.layouts import CoreInstructionCounterLayouts
 from transactron.core import Method, Provided, TModule, def_method
-from transactron.utils import logging
+from transactron.utils import DependencyContext, logging
 
 log = logging.HardwareLogger("structs.core_counter")
 
@@ -28,6 +29,9 @@ class CoreInstructionCounter(Elaboratable):
         layouts = gen_params.get(CoreInstructionCounterLayouts)
         self.increment = Method(i=layouts.increment_in)
         self.decrement = Method(i=layouts.decrement_in, o=layouts.decrement_out)
+        
+        self.stall_fail = Signal()
+        DependencyContext.get().add_dependency(Export(), self.stall_fail)
 
     def elaborate(self, platform) -> TModule:
         m = TModule()
@@ -41,6 +45,9 @@ class CoreInstructionCounter(Elaboratable):
         m.d.sync += counter.eq(counter_next)
 
         limit = (2 ** counter.shape().width) - self.gen_params.frontend_superscalarity
+        
+        stall_fail_tresh = int(1e6)
+        stall_ctr = Signal(range(stall_fail_tresh))
 
         @def_method(m, self.increment, ready=counter < limit)
         def _(count):
@@ -50,6 +57,14 @@ class CoreInstructionCounter(Elaboratable):
         def _(count):
             m.d.comb += decr_value.eq(count)
             return counter_next == 0
+       
+        with m.If(self.increment.run | self.decrement.run):
+            m.d.sync += self.stall_fail.eq(0)
+            m.d.sync += stall_ctr.eq(0)
+        with m.Elif(stall_ctr == stall_fail_tresh - 1):
+            m.d.sync += self.stall_fail.eq(1)
+        with m.Else():
+            m.d.sync += stall_ctr.eq(stall_ctr + 1)
 
         log.debug(m, counter_next != counter, "{} instructions in core", counter)
 
