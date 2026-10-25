@@ -31,7 +31,8 @@ class CoreInstructionCounter(Elaboratable):
         self.decrement = Method(i=layouts.decrement_in, o=layouts.decrement_out)
         
         self.stall_fail = Signal()
-        DependencyContext.get().add_dependency(Export(), self.stall_fail)
+        self.dbg = Signal(2)
+        DependencyContext.get().add_dependency(Export(), self.dbg)
 
     def elaborate(self, platform) -> TModule:
         m = TModule()
@@ -65,6 +66,8 @@ class CoreInstructionCounter(Elaboratable):
             m.d.sync += self.stall_fail.eq(1)
         with m.Else():
             m.d.sync += stall_ctr.eq(stall_ctr + 1)
+
+        m.d.comb += self.dbg.eq(Cat(self.stall_fail, counter.any()))
 
         log.debug(m, counter_next != counter, "{} instructions in core", counter)
 

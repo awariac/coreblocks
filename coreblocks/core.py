@@ -45,7 +45,6 @@ class Core(Component):
     wb_instr: WishboneInterface
     wb_data: WishboneInterface
     interrupts: Signal
-    dbg: Signal
 
     def __init__(self, *, gen_params: GenParams):
         self.gen_params = gen_params
@@ -59,7 +58,7 @@ class Core(Component):
             "wb_instr": Out(WishboneInterface(gen_params.wb_params).signature),
             "wb_data": Out(WishboneInterface(gen_params.wb_params).signature),
             "interrupts": In(ISA_RESERVED_INTERRUPTS + gen_params.interrupt_custom_count),
-            "dbg": Out(1)
+            "dbg": Out(4),
         }
 
         if self.gen_params.has_rvvi:
@@ -258,7 +257,6 @@ class Core(Component):
 
         m.submodules.func_blocks_unifier = self.func_blocks_unifier
 
-        dbg = self.dm.get_dependency(Export())
-        m.d.comb += self.dbg.eq(dbg)
+        m.d.comb += self.dbg.eq(DependencyContext.get().get_dependency(Export()))
 
         return m

@@ -35,6 +35,7 @@ from coreblocks.interface.keys import (
     ActiveTagsKey,
     CoreStateKey,
     CSRInstancesKey,
+    Export,
     RVVIHartCollectorKey,
     SideFxGuardKey,
     FTQCommitKey,
@@ -111,8 +112,13 @@ class Retirement(Elaboratable):
         self.side_fx_guard = Method(i=layouts.side_fx_guard_in)
         self.dependency_manager.add_dependency(SideFxGuardKey(), self.side_fx_guard)
 
+        self.dbg = Signal(4)
+        #DependencyContext.get().add_dependency(Export(), self.dbg)
+
     def elaborate(self, platform):
         m = TModule()
+
+        dbg = self.dbg
 
         m.submodules += [self.perf_instr_ret, self.perf_trap_latency]
 
@@ -388,6 +394,8 @@ class Retirement(Elaboratable):
                             tvec_mode.eq(reg_mode.read(m).data),
                             tcause.eq(reg_cause.read(m).data),
                         ]
+                    
+                    m.d.sync += dbg.eq(tcause[0:4])
 
                     with m.Switch(trap_target_priv):
                         if self.gen_params.supervisor_mode:

@@ -18,7 +18,7 @@ from coreblocks.frontend.bpu.bpu import BranchPredictionUnit
 from coreblocks.cache.icache import ICache, ICacheBypass
 from coreblocks.cache.refiller import SimpleCommonBusCacheRefiller
 from coreblocks.interface.layouts import *
-from coreblocks.interface.keys import FlushICacheKey, RollbackKey, UnsafeInstructionResolvedKey
+from coreblocks.interface.keys import Export, FlushICacheKey, RollbackKey, UnsafeInstructionResolvedKey
 from coreblocks.peripherals.bus_adapter import BusMasterInterface
 
 log = logging.HardwareLogger("frontend")
@@ -126,6 +126,9 @@ class CoreFrontend(Elaboratable):
 
         self.get_exception_information = Method(o=gen_params.get(ExceptionInformationRegisterLayouts).get)
 
+        self.stall_on_redirect = Signal()
+        #DependencyContext.get().add_dependency(Export(), self.stall_on_redirect)
+
     def elaborate(self, platform):
         m = TModule()
 
@@ -176,10 +179,15 @@ class CoreFrontend(Elaboratable):
         rollback = Method(i=self.gen_params.get(RATLayouts).rollback_in)
         self.connections.add_dependency(RollbackKey(), rollback)
 
+        with m.If(self.consume_instr.run):
+            m.d.sync += self.stall_on_redirect.eq(0)
+
         @def_method(m, self.redirect)
         def _(ftq_ptr, pc):
+            m.d.sync += self.stall_on_redirect.eq(1)
             flush(m)
             self.ftq.backend_redirect(m, ftq_ptr=ftq_ptr, pc=pc)
+
 
         @def_method(m, rollback)
         def _(tag, pc, ftq_ptr):

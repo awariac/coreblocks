@@ -1,8 +1,10 @@
 from amaranth import *
 from amaranth.lib.wiring import Component, In, Out, connect, flipped
+from transactron.utils import DependencyContext
 
 from coreblocks.arch.isa_consts import InterruptCauseNumber
 from coreblocks.core import Core
+from coreblocks.interface.keys import Export
 from coreblocks.params import GenParams
 from coreblocks.peripherals.wishbone import WishboneInterface, WishboneMuxer
 from coreblocks.priv.traps.interrupt_controller import ISA_RESERVED_INTERRUPTS
@@ -41,6 +43,7 @@ class Socks(Component):
                 "interrupts": In(
                     (1 if with_plic else ISA_RESERVED_INTERRUPTS) + core_gen_params.interrupt_custom_count
                 ),
+                "dbg": Out(4),
             }
         )
 
@@ -96,5 +99,7 @@ class Socks(Component):
             m.d.comb += self.core.interrupts[ISA_RESERVED_INTERRUPTS:].eq(self.interrupts[ISA_RESERVED_INTERRUPTS:])
         m.d.comb += self.core.interrupts[InterruptCauseNumber.MTI].eq(self.clint.mtip)
         m.d.comb += self.core.interrupts[InterruptCauseNumber.MSI].eq(self.clint.msip)
+
+        m.d.comb += self.dbg.eq(self.core.dbg)
 
         return m
