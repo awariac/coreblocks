@@ -38,6 +38,7 @@ from coreblocks.interface.keys import (
     RVVIHartCollectorKey,
     SideFxGuardKey,
     FTQCommitKey,
+    DebugExportsKey,
 )
 from coreblocks.priv.csr.csr_instances import CSRAddress, counteren_access_filter
 from coreblocks.priv.csr.csr_register import CSRRegister
@@ -153,6 +154,7 @@ class Retirement(Elaboratable):
                 rob_entry.rob_data.rp_dst,
                 rob_entry.rob_id,
             )
+            m.d.comb += DependencyContext.get().get_dependency(DebugExportsKey()).rc.eq(1)
 
         def flush_instr(i: int, rob_entry: View):
             evlog.emit(m, RobFlush.hw(rob_id=rob_entry.rob_id))
@@ -167,6 +169,7 @@ class Retirement(Elaboratable):
                 rob_entry.rob_id,
                 rob_entry.rob_data.rp_dst,
             )
+            m.d.comb += DependencyContext.get().get_dependency(DebugExportsKey()).rf.eq(1)
 
         retire_valid = Signal()
         exception = Signal()
@@ -285,6 +288,9 @@ class Retirement(Elaboratable):
                             cause_reg.write(m, cause_entry)
                             epc_reg.write(m, cause_register.pc)
                             tval_reg.write(m, cause_register.mtval)
+
+                            m.d.sync += DependencyContext.get().get_dependency(DebugExportsKey()).cause.eq(cause_entry)
+                            m.d.sync += DependencyContext.get().get_dependency(DebugExportsKey()).tval.eq(cause_register.mtval)
 
                         with m.Switch(target_priv):
                             if self.gen_params.supervisor_mode:
@@ -410,6 +416,9 @@ class Retirement(Elaboratable):
                     self.exception_cause_clear(m)
 
                     m.next = "NORMAL"
+        
+         
+        m.d.comb += DependencyContext.get().get_dependency(DebugExportsKey()).fsm.eq(fsm.ongoing("NORMAL"))
 
         @def_method(m, self.core_state, nonexclusive=True)
         def _():

@@ -1,8 +1,9 @@
 from amaranth import *
 from coreblocks.params.genparams import GenParams
 from coreblocks.interface.layouts import CoreInstructionCounterLayouts
+from coreblocks.interface.keys import DebugExportsKey 
 from transactron.core import Method, Provided, TModule, def_method
-from transactron.utils import logging
+from transactron.utils import DependencyContext, logging
 
 log = logging.HardwareLogger("structs.core_counter")
 
@@ -52,5 +53,19 @@ class CoreInstructionCounter(Elaboratable):
             return counter_next == 0
 
         log.debug(m, counter_next != counter, "{} instructions in core", counter)
+
+        stall = Signal()
+        tresh = int(1e3)
+        stall_ctr = Signal(range(tresh))
+        with m.If(self.increment.run | self.decrement.run):
+            m.d.sync += stall_ctr.eq(0)
+            m.d.sync += stall.eq(0)
+        with m.Elif(stall_ctr == tresh-1):
+            m.d.sync += stall.eq(1)
+        with m.Else():
+            m.d.sync += stall_ctr.eq(stall_ctr + 1)
+
+        m.d.top_comb += DependencyContext.get().get_dependency(DebugExportsKey()).ctr.eq(counter)
+        m.d.top_comb += DependencyContext.get().get_dependency(DebugExportsKey()).stall.eq(stall)
 
         return m

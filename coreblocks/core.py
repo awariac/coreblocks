@@ -1,5 +1,6 @@
 from amaranth import *
-from amaranth.lib.wiring import Component, flipped, connect, In, Out
+from amaranth.lib.data import StructLayout
+from amaranth.lib.wiring import Component, flipped, connect, In, Out, Signature
 from transactron import Transaction
 from transactron.lib.allocators import PriorityEncoderAllocator
 
@@ -16,6 +17,7 @@ from coreblocks.interface.keys import (
     InstructionAddressTranslatorBackingDeviceKey,
     DataAddressTranslatorBackingDeviceKey,
     RVVIHartCollectorKey,
+    DebugExportsKey,
 )
 from coreblocks.params.genparams import GenParams
 from coreblocks.core_structs.crat import CheckpointRAT
@@ -39,11 +41,34 @@ from coreblocks.telemetry.rvvi import RVVIAggregator, RVVIHartCollector
 
 __all__ = ["Core"]
 
+class DbgSignalsInterface(Signature):
+    def __init__(self, gen_params):
+        self.dbg_shape = {
+            "ctr": gen_params.rob_entries_bits + 1,
+            "stall": 1,
+            "tval": 32,
+            "cause": 32,
+            "pc": 32,
+            "mode": 2,
+            "fetch_redirect": 32,
+            "mstatus": 32,
+            "itr_req": 1,
+            "itr_req_a": 32,
+            "itr_res": 1,
+            "itr_res_a": 32,
+            "fsm": 1,
+            "rc": 1,
+            "rf": 1,
+            "optype": 8,
+            "csr_fei": 3,
+        }
+        super().__init__({name: Out(shape) for name, shape in self.dbg_shape.items()})
 
 class Core(Component):
     wb_instr: WishboneInterface
     wb_data: WishboneInterface
     interrupts: Signal
+    dbg: Signal 
 
     def __init__(self, *, gen_params: GenParams):
         self.gen_params = gen_params
@@ -57,6 +82,7 @@ class Core(Component):
             "wb_instr": Out(WishboneInterface(gen_params.wb_params).signature),
             "wb_data": Out(WishboneInterface(gen_params.wb_params).signature),
             "interrupts": In(ISA_RESERVED_INTERRUPTS + gen_params.interrupt_custom_count),
+            "dbg": Out(DbgSignalsInterface(gen_params)),
         }
 
         if self.gen_params.has_rvvi:
@@ -66,6 +92,8 @@ class Core(Component):
             signature["rvvi_trace"] = Out(self.rvvi_aggregator.signature)
 
         super().__init__(signature)
+        
+        self.dm.add_dependency(DebugExportsKey(), self.dbg) # type: ignore
 
         self.wb_master_instr = WishboneMaster(self.gen_params.wb_params, "instr")
         self.wb_master_data = WishboneMaster(self.gen_params.wb_params, "data")

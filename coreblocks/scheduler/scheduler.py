@@ -12,6 +12,7 @@ from transactron.utils.dependencies import DependencyContext
 from transactron.evlog import EventSource
 
 from coreblocks.interface.layouts import RATLayouts, RFLayouts, ROBLayouts, RSFullDataLayout, SchedulerLayouts
+from coreblocks.interface.keys import DebugExportsKey
 from coreblocks.params import GenParams
 from coreblocks.arch.optypes import OpType, impure_optypes
 from coreblocks.interface.keys import CoreStateKey, RVVIHartCollectorKey
@@ -485,6 +486,7 @@ class RSInsertion(Elaboratable):
                 m.d.av_comb += arg.rs_entry_id.eq(matched_entry_id)
 
                 with m.If(matches.any()):
+                    m.d.comb += DependencyContext.get().get_dependency(DebugExportsKey()).optype.eq(arg.rs_data.exec_fn.op_type)
                     rs_insert(m, arg)
 
         return m

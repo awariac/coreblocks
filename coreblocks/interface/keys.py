@@ -37,6 +37,7 @@ __all__ = [
     "InstructionTaggedCounterKey",
     "ActiveTagsKey",
     "RVVIHartCollectorKey",
+    "DebugExportsKey",
 ]
 
 
@@ -183,4 +184,9 @@ class ActiveTagsKey(SimpleKey[Method]):
 
 @dataclass(frozen=True)
 class RVVIHartCollectorKey(SimpleKey["RVVIHartCollector"]):
+    pass
+
+
+@dataclass(frozen=True)
+class DebugExportsKey(SimpleKey[Signal]):
     pass

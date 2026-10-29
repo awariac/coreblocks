@@ -18,7 +18,7 @@ from coreblocks.frontend.bpu.bpu import BranchPredictionUnit
 from coreblocks.cache.icache import ICache, ICacheBypass
 from coreblocks.cache.refiller import SimpleCommonBusCacheRefiller
 from coreblocks.interface.layouts import *
-from coreblocks.interface.keys import FlushICacheKey, RollbackKey, UnsafeInstructionResolvedKey
+from coreblocks.interface.keys import FlushICacheKey, RollbackKey, UnsafeInstructionResolvedKey, DebugExportsKey
 from coreblocks.peripherals.bus_adapter import BusMasterInterface
 
 log = logging.HardwareLogger("frontend")
@@ -179,6 +179,7 @@ class CoreFrontend(Elaboratable):
         @def_method(m, self.redirect)
         def _(ftq_ptr, pc):
             flush(m)
+            m.d.comb += self.connections.get_dependency(DebugExportsKey()).fetch_redirect.eq(pc)
             self.ftq.backend_redirect(m, ftq_ptr=ftq_ptr, pc=pc)
 
         @def_method(m, rollback)

@@ -23,6 +23,7 @@ from coreblocks.interface.keys import (
     SideFxGuardKey,
     ExceptionReportKey,
     AsyncInterruptInsertSignalKey,
+    DebugExportsKey,
 )
 
 __all__ = [
@@ -266,6 +267,8 @@ class CSRUnit(FuncBlock, Elaboratable):
             with m.If(~flush_instr & ~exception & ~interrupt):
                 # CSR instructions are never compressed, PC+4 is always next instruction
                 resume_core(m, ftq_ptr=instr.ftq_ptr, pc=instr.pc + self.gen_params.isa.ilen_bytes)
+
+            m.d.comb += DependencyContext.get().get_dependency(DebugExportsKey()).csr_fei.eq(Cat(flush_instr, exception, interrupt))
 
             return {
                 "rob_id": instr.rob_id,

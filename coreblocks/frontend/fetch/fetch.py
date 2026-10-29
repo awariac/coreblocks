@@ -26,7 +26,7 @@ from coreblocks.priv.pmp import PMPChecker, PMPOperationMode
 from coreblocks.arch import *
 from coreblocks.params import *
 from coreblocks.interface.layouts import *
-from coreblocks.interface.keys import RVVIHartCollectorKey
+from coreblocks.interface.keys import RVVIHartCollectorKey, DebugExportsKey
 from coreblocks.frontend import FrontendParams
 from coreblocks.priv.vmem.translation import AddressTranslator, AddressTranslatorMode
 from coreblocks.telemetry import InstrFetched
@@ -114,6 +114,11 @@ class FetchUnit(Elaboratable):
         m.submodules += [self.perf_fetch_utilization]
 
         m.submodules.addr_translator = self.addr_translator
+        dbg = DependencyContext.get().get_dependency(DebugExportsKey())
+        m.d.comb += dbg.itr_req.eq(self.addr_translator.request.run)
+        m.d.comb += dbg.itr_req_a.eq(self.addr_translator.request.data_in.addr)
+        m.d.comb += dbg.itr_res.eq(self.addr_translator.accept.run)
+        m.d.comb += dbg.itr_res_a.eq(self.addr_translator.accept.data_out.paddr)
 
         fetch_width = self.gen_params.fetch_width
         fields = self.gen_params.get(CommonLayoutFields)

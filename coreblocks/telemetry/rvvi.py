@@ -8,7 +8,7 @@ from transactron.utils import DependencyContext, make_layout, logging, popcount
 from transactron.utils.amaranth_ext.component_interface import ComponentInterface, COut
 
 from coreblocks.arch.isa_consts import PrivilegeLevel, XlenEncoding
-from coreblocks.interface.keys import CSRInstancesKey
+from coreblocks.interface.keys import CSRInstancesKey, DebugExportsKey
 from coreblocks.params import GenParams
 from coreblocks.interface.layouts import RVVILayouts
 
@@ -175,6 +175,7 @@ class RVVIHartCollector(Component):
             m.d.av_comb += port.halt.eq(0)  # never happens
             m.d.av_comb += port.pc_rdata.eq(rob_port.data.info.pc)
             m.d.av_comb += port.pc_wdata.eq(0)  # not implemented
+            m.d.sync += DependencyContext.get().get_dependency(DebugExportsKey()).pc.eq(rob_port.data.info.pc)
 
             rf_port = rf_mem.read_port(domain="comb")
             m.d.av_comb += rf_port.addr.eq(rp_dst)

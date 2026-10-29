@@ -25,7 +25,7 @@ from coreblocks.priv.csr.double_counter import DoubleCounterCSR
 from coreblocks.priv.csr.shadow import ShadowCSR
 from coreblocks.priv.csr.double_shadow import DoubleShadowCSR
 from coreblocks.socks.clint import ClintMtimeKey
-from coreblocks.interface.keys import CSRInstancesKey
+from coreblocks.interface.keys import CSRInstancesKey, DebugExportsKey
 from typing import Optional
 from amaranth.lib import data
 from transactron.core import Method, Transaction, TModule, def_method
@@ -257,6 +257,8 @@ class MachineModeCSRRegisters(Elaboratable):
 
     def elaborate(self, platform):
         m = TModule()
+        
+        m.d.comb += DependencyContext.get().get_dependency(DebugExportsKey()).mstatus.eq(self.mstatus.value)
 
         for name, value in vars(self).items():
             if isinstance(value, (CSRRegisterBase, DoubleCounterCSR, DoubleShadowCSR)):
@@ -612,5 +614,6 @@ class CSRInstances(Elaboratable):
             log.assertion(
                 m, ~mprv | (priv_mode == PrivilegeLevel.MACHINE), "MPRV should only be on when priv_mode is MACHINE"
             )
+            m.d.comb += DependencyContext.get().get_dependency(DebugExportsKey()).mode.eq(priv_mode)
 
         return m
