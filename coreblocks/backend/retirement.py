@@ -20,6 +20,7 @@ from transactron.utils import (
     count_trailing_zeros,
     OneHotMux,
     mask_before_first_set_bit,
+    mask_from_first_set_bit,
     popcount,
 )
 from transactron.lib.metrics import *
@@ -174,10 +175,9 @@ class Retirement(Elaboratable):
         retire_count = Signal(range(self.gen_params.retirement_superscalarity + 1))
         no_trap_count = Signal.like(retire_count)
         active_no_trap_count = Signal.like(retire_count)
-        done_count = Signal.like(retire_count)
         tag_incr_mask = Signal(self.gen_params.retirement_superscalarity)
         retiring_mask = Signal.like(tag_incr_mask)
-        done_mask = Signal.like(tag_incr_mask)
+        pending_mask = Signal.like(tag_incr_mask)
         dealloc_tags_count = Signal.like(retire_count)
         instr_active_mask = Signal.like(tag_incr_mask)
 
@@ -187,11 +187,10 @@ class Retirement(Elaboratable):
             ecr_entry = self.exception_cause_get(m)
 
         m.d.comb += tag_incr_mask.eq(Cat(entry.rob_data.tag_increment for entry in rob_entries.entries))
-        m.d.comb += done_mask.eq(Cat(entry.done for entry in rob_entries.entries))
-        m.d.comb += done_count.eq(count_trailing_zeros(~done_mask))
+        m.d.comb += pending_mask.eq(Cat(~entry.done for entry in rob_entries.entries))
 
-        m.d.comb += retire_count.eq(done_count)
-        m.d.comb += retiring_mask.eq(~(-1 << done_count))
+        m.d.comb += retire_count.eq(count_trailing_zeros(pending_mask))
+        m.d.comb += retiring_mask.eq(~mask_from_first_set_bit(pending_mask))
         m.d.comb += dealloc_tags_count.eq(popcount(tag_incr_mask & retiring_mask))
 
         active_tags_in_range = Signal(self.gen_params.retirement_superscalarity + 1)
@@ -434,7 +433,7 @@ class Retirement(Elaboratable):
         # Disable executing any side effects from instructions in core when it is flushed
         core_flushing = Signal()
         m.d.comb += core_flushing.eq(
-            fsm.ongoing("TRAP_FLUSH") | exc_prefixes[done_count]
+            fsm.ongoing("TRAP_FLUSH") | exc_prefixes[retire_count]
         )  # FIXME: this check is too restrictive but it will work
 
         # The argument is only used in argument validation, it is not needed in the method body. A dummy combiner is
@@ -444,7 +443,7 @@ class Retirement(Elaboratable):
             self.side_fx_guard,
             ready=~core_flushing,
             validate_arguments=lambda rob_id, tag, require_done: (rob_id == side_fx_rob_id)
-            & (~require_done | (pure_count == done_count))
+            & (~require_done | (pure_count == retire_count))
             & active_tags[tag],  # FUTURE-TODO: inactive instructions are pure
             nonexclusive=True,
             combiner=lambda m, args, runs: {"rob_id": 0, "tag": 0, "require_done": 0},
