@@ -180,6 +180,7 @@ class Retirement(Elaboratable):
         pending_mask = Signal.like(tag_incr_mask)
         dealloc_tags_count = Signal.like(retire_count)
         instr_active_mask = Signal.like(tag_incr_mask)
+        instr_active_mask_ignore_done = Signal.like(tag_incr_mask)
 
         with Transaction().always_body(m):
             rob_entries = self.rob_peek(m)
@@ -201,9 +202,8 @@ class Retirement(Elaboratable):
             m.d.comb += tag_incr_at_bit[i].eq(
                 (tag_incr_at_bit[i - 1] if i > 0 else 0) + rob_entries.entries[i].rob_data.tag_increment
             )
-            m.d.comb += instr_active_mask[i].eq(
-                active_tags_in_range.bit_select(tag_incr_at_bit[i], 1) & retiring_mask[i]
-            )
+            m.d.comb += instr_active_mask_ignore_done[i].eq(active_tags_in_range.bit_select(tag_incr_at_bit[i], 1))
+        m.d.comb += instr_active_mask.eq(instr_active_mask_ignore_done & retiring_mask)
 
         exception_bits = Signal(self.gen_params.retirement_superscalarity)
         m.d.comb += exception_bits.eq(Cat(rob_entry.exception for rob_entry in rob_entries.entries) & instr_active_mask)
@@ -419,14 +419,8 @@ class Retirement(Elaboratable):
         )
         m.d.comb += side_fx_rob_id.eq(rob_entries.entries[0].rob_id + pure_count)
 
-        current_tag_expr = last_retired_tag
         pure_inactive_offset = Signal(self.gen_params.retirement_superscalarity)
-        for i, entry in enumerate(rob_entries.entries):
-            # FUTURE-TODO: unify with the other tag mask when we would support retiring multiple tags in single cycle
-            current_tag_expr += entry.rob_data.tag_increment
-            current_tag = Signal(self.gen_params.tag_bits)
-            m.d.comb += current_tag.eq(current_tag_expr)
-            m.d.comb += pure_inactive_offset[i].eq(~active_tags[current_tag] & pure_prefix[i])
+        m.d.comb += pure_inactive_offset.eq(~instr_active_mask_ignore_done & pure_prefix)
 
         m.d.comb += self.pure_active_count.eq(pure_count - popcount(pure_inactive_offset))
 
