@@ -158,9 +158,6 @@ class ReorderBuffer(Elaboratable):
                 entries.append({"rob_id": rob_id})
             return {"entries": entries}
 
-        # TODO: There is a potential race condition when ROB is flushed.
-        # If functional units aren't flushed, finished obsolete instructions
-        # could mark fields in ROB as done when they shouldn't.
         @def_methods(m, self.mark_done)
         def _(k: int, rob_id: Value, exception):
             log.assertion(m, ~self.done[rob_id], "mark_done called on already done ROB entry {}", rob_id)

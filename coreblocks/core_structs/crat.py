@@ -420,24 +420,24 @@ class CheckpointRAT(Elaboratable):
             next_tags_tail = Signal.like(tags_tail)
             m.d.comb += active_tags_reset_mask_1.eq(deallocated_tags)
             m.d.av_comb += next_tags_tail.eq(
-                mod_add(tags_tail, self.gen_params.tag_count, count, self.gen_params.retirement_superscalarity)
+                mod_add(tags_tail, self.gen_params.tag_count, count, self.gen_params.retirement_superscalarity + 1)
             )
             m.d.sync += tags_tail.eq(next_tags_tail)
 
             # prevent double-free on a just rolled back tag (it can be retired a cycle later)
-            current_checkpointed_tags = checkpointed_tags & ~checkpointed_tags_reset_mask_0
+            current_checkpointed_tags = checkpointed_tags & ~checkpointed_tags_reset_mask_0 & active_tags
 
             checkpoints_tail_incr = Signal(range(self.gen_params.retirement_superscalarity + 1))
             deallocated_checkpoints = current_checkpointed_tags & deallocated_tags
             m.d.av_comb += checkpoints_tail_incr.eq(popcount(deallocated_checkpoints))
 
-            # deallocate physical checkpoints (but not tags) associated with freed tag
+            # deallocate physical checkpoints associated with freed tags
             m.d.comb += checkpoints_next_tail_comb.eq(
                 mod_add(
                     checkpoints_tail,
                     self.gen_params.checkpoint_count,
                     checkpoints_tail_incr,
-                    self.gen_params.retirement_superscalarity,
+                    self.gen_params.retirement_superscalarity + 1,
                 )
             )
             m.d.sync += checkpoints_tail.eq(checkpoints_next_tail_comb)
