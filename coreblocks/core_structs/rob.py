@@ -149,7 +149,7 @@ class ReorderBuffer(Elaboratable):
             self.perf_rob_wait_time.start(m, count=count)
             self.perf_rob_put_count.incr(m, tag=count)
             self.data.write(m, count=count, data=[entry.rob_data for entry in entries])
-            for i in range(self.params.retirement_superscalarity):
+            for i in range(self.params.frontend_superscalarity):
                 with m.If(i < count):
                     m.d.sync += self.pure[end_idx_plus[i]].eq(entries[i].pure)
             entries = []
