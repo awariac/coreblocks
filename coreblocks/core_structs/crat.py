@@ -420,7 +420,7 @@ class CheckpointRAT(Elaboratable):
             next_tags_tail = Signal.like(tags_tail)
             m.d.comb += active_tags_reset_mask_1.eq(deallocated_tags)
             m.d.av_comb += next_tags_tail.eq(
-                mod_add(tags_tail, self.gen_params.tag_count, count, self.gen_params.retirement_superscalarity + 1)
+                mod_add(tags_tail, self.gen_params.tag_count, count, self.gen_params.retirement_superscalarity)
             )
             m.d.sync += tags_tail.eq(next_tags_tail)
 
@@ -437,7 +437,7 @@ class CheckpointRAT(Elaboratable):
                     checkpoints_tail,
                     self.gen_params.checkpoint_count,
                     checkpoints_tail_incr,
-                    self.gen_params.retirement_superscalarity + 1,
+                    self.gen_params.retirement_superscalarity,
                 )
             )
             m.d.sync += checkpoints_tail.eq(checkpoints_next_tail_comb)
@@ -452,7 +452,7 @@ class CheckpointRAT(Elaboratable):
                 checkpoints_next_tail_comb,
             )
 
-            m.d.comb += checkpointed_tags_reset_mask_1.eq(1 << tags_tail)
+            m.d.comb += checkpointed_tags_reset_mask_1.eq(deallocated_tags)
 
             log.debug(m, True, "deallocated tags [0x{:x},0x{:x})", tags_tail, next_tags_tail)
 

@@ -207,7 +207,7 @@ class Retirement(Elaboratable):
 
         exception_bits = Signal(self.gen_params.retirement_superscalarity)
         m.d.comb += exception_bits.eq(Cat(rob_entry.exception for rob_entry in rob_entries.entries) & instr_active_mask)
-        m.d.comb += no_trap_count.eq(count_trailing_zeros(exception_bits | ~retiring_mask))
+        m.d.comb += no_trap_count.eq(count_trailing_zeros((1 << retire_count) | exception_bits | ~retiring_mask))
         m.d.comb += active_no_trap_count.eq(popcount(mask_before_first_set_bit(exception_bits) & instr_active_mask))
         m.d.comb += exception.eq((exception_bits & retiring_mask).any())
 
@@ -413,7 +413,7 @@ class Retirement(Elaboratable):
         side_fx_rob_id = Signal(self.gen_params.rob_entries_bits)
         exc_prefixes = Array(
             [
-                Cat(rob_entries.entries[j].exception for j in range(i)).any()
+                Cat(rob_entries.entries[j].exception & instr_active_mask[j] for j in range(i)).any()
                 for i in range(self.gen_params.retirement_superscalarity + 1)
             ]
         )
@@ -432,9 +432,7 @@ class Retirement(Elaboratable):
 
         # Disable executing any side effects from instructions in core when it is flushed
         core_flushing = Signal()
-        m.d.comb += core_flushing.eq(
-            fsm.ongoing("TRAP_FLUSH") | exc_prefixes[retire_count]
-        )  # FIXME: this check is too restrictive but it will work
+        m.d.comb += core_flushing.eq(fsm.ongoing("TRAP_FLUSH") | (exc_prefixes[retire_count] & retire_valid))
 
         # The argument is only used in argument validation, it is not needed in the method body. A dummy combiner is
         # provided.
